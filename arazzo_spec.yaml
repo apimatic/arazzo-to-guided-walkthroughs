@@ -1,4 +1,4 @@
-arazzo: 1.0.0
+.arazzo: 1.0.0
 info:
   title: A pet purchasing workflow
   summary: This Arazzo Description showcases the workflow for how to purchase a pet through a sequence of API calls
@@ -22,17 +22,20 @@ workflows:
           password:
               type: string
   steps:
-  - stepId: loginStep
-    description: This step demonstrates the user login step
-    operationId: loginUser
+  - stepId: UpdatePetWithForm
+    description: This step is to update pet with form
+    operationPath: '$e/pet/updatePetWithForm'
+    operationId: UpdatePetWithForm
     parameters:
-      # parameters to inject into the loginUser operation (parameter name must be resolvable at the referenced operation and the value is determined using {expression} syntax)
-      - name: username
+      - name: petId
+        in: path
+        value: 10
+      - name: name
         in: query
-        value: $inputs.username
-      - name: password
+        value: TestVal
+      - name: status
         in: query
-        value: $inputs.password
+        value: TestVal
     successCriteria:
       # assertions to determine step was successful
       - condition: $statusCode == 200
@@ -43,14 +46,15 @@ workflows:
       sessionToken: $response.body
   - stepId: getPetStep
     description: retrieve a pet by status from the GET pets endpoint
-    operationPath: '{$sourceDescriptions.petstoreDescription.url}#/paths/~1pet~1findByStatus/get'
+    operationPath: '$e/pet/deletePet'
+    operationId: 'getPetStep'
     parameters:
-      - name: status
-        in: query
-        value: 'available'
-      - name: Authorization
+      - name: petId
+        in: path
+        value: 10
+      - name: api_key
         in: header
-        value: $steps.loginUser.outputs.sessionToken
+        value: shouldWork
     successCriteria:
       - condition: $statusCode == 200
     outputs:
