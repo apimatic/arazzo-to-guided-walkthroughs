@@ -7,7 +7,7 @@ info:
   version: 1.0.1
 sourceDescriptions:
 - name: petStoreDescription
-  url: https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml
+  url: https://raw.githubusercontent.com/swagger-api/swagger-petstore/master/src/main/resources/openapi.yaml
   type: openapi
 
 workflows:
@@ -25,7 +25,7 @@ workflows:
   - stepId: UpdatePetWithForm
     description: This step is to update pet with form
     operationPath: '$e/pet/updatePetWithForm'
-    operationId: UpdatePetWithForm
+    operationId: updatePetWithForm
     parameters:
       - name: petId
         in: path
@@ -47,7 +47,7 @@ workflows:
   - stepId: getPetStep
     description: retrieve a pet by status from the GET pets endpoint
     operationPath: '$e/pet/deletePet'
-    operationId: 'getPetStep'
+    operationId: getPetById
     parameters:
       - name: petId
         in: path

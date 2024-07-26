@@ -1,11 +1,18 @@
+import parsespec
 import yaml
 import os
 import re
+import zipfile
 
-def parse_arazzo(file_path):
+def get_arazzo_workflows(file_path):
     with open(file_path, 'r') as file:
         arazzo_data = yaml.safe_load(file)
     return arazzo_data['workflows']
+
+def get_arazzo_souceDescription_url(file_path):
+    with open(file_path, 'r') as file:
+        arazzo_data = yaml.safe_load(file)
+    return arazzo_data['sourceDescriptions'][0]['url']
 
 function_template = """
 async function {workflow_id}(workflowCtx, portal) {{
@@ -28,7 +35,7 @@ step_template = """
             }});
             return workflowCtx.showEndpoint({{
                 description: `{description}`,
-                endpointPermalink: "{operation_path}",
+                endpointPermalink: "{endpoint_permalink}",
                 args: {{
                     {args_code}
                 }},
@@ -62,7 +69,7 @@ def is_number(value):
     except ValueError:
         return False
 
-def generate_step_code(step, steps):
+def generate_step_code(step, steps, endpoints):
     parameters = step.get('parameters', [])
     args_body = {}
     args_other = {}
@@ -100,25 +107,27 @@ def generate_step_code(step, steps):
 
     previous_step_id = steps[steps.index(step) - 1].get('stepId', '') if steps.index(step) > 0 else ''
 
+    endpoint_permalink = endpoints.get(step.get('operationId', 'Not provided'), 'Not provided')
+
     return step_template.format(
         step_id=step.get('stepId', 'No stepId'),
         step_name=step.get('description', 'No description'),
         step_state_declaration=f"const previousStepState = stepState?.[\"{previous_step_id}\"];" if previous_step_id else "",
         description=step.get('description', 'No description'),
-        operation_path=step.get('operationPath', 'Not provided'),
+        endpoint_permalink=endpoint_permalink,
         args_code=args_code,
         config_code=f"config: {{ ...defaultConfig.config, {headers_code} }}" if headers_code else ""
     )
 
-def generate_steps(steps):
+def generate_steps(steps, endpoints):
     steps_code = ""
     for step in steps:
-        step_code = generate_step_code(step, steps)
+        step_code = generate_step_code(step, steps, endpoints)
         steps_code += step_code
     return steps_code
 
-def generate_function(workflow):
-    steps_code = generate_steps(workflow['steps'])
+def generate_function(workflow, endpoints):
+    steps_code = generate_steps(workflow['steps'], endpoints)
     return function_template.format(workflow_id=workflow['workflowId'], steps=steps_code)
 
 def save_js_function(js_code, file_name):
@@ -130,13 +139,35 @@ def main():
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
 
-    workflows = parse_arazzo(arazzo_file)
-    
+    # print(url)
+    url = get_arazzo_souceDescription_url(arazzo_file)
+
+    endpoints = parsespec.get_endpoints_from_openapi(url)
+
+    workflow_ids = []
+
+    workflows = get_arazzo_workflows(arazzo_file)
     for workflow in workflows:
-        js_code = generate_function(workflow)
-        file_name = os.path.join(output_dir, f"{workflow['workflowId']}.js")
+        js_code = generate_function(workflow, endpoints)
+        workflow_id = workflow['workflowId']
+        workflow_ids.append(workflow_id)
+        file_name = os.path.join(output_dir, f"{workflow_id}.js")
         save_js_function(js_code, file_name)
         print(js_code)
+
+    with open(os.path.join(output_dir, 'workflow_ids.txt'), 'w') as file:
+        file.write("Generated walkthrough scripts:\n")
+        for workflow_id in workflow_ids:
+            file.write(f"{workflow_id}.js\n")
+
+    zip_filename = os.path.join(output_dir, 'generated_files.zip')
+    with zipfile.ZipFile(zip_filename, 'w') as zipf:
+        for root, _, files in os.walk(output_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                zipf.write(file_path, os.path.relpath(file_path, output_dir))
+
+    print(f"Generated files are zipped into: {zip_filename}")
 
 if __name__ == "__main__":
     main()

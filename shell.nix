@@ -6,6 +6,7 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.python3
     pkgs.python3Packages.pyyaml
+    pkgs.python3Packages.requests
   ];
 
   shellHook = ''

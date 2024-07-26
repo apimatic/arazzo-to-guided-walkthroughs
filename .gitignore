@@ -1,0 +1,6 @@
+# Ignore .nix files
+*.nix
+
+# Ignore contents of the output/ folder
+output/
+

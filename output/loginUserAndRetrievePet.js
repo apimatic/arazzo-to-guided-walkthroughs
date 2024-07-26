@@ -42,7 +42,7 @@ async function loginUserAndRetrievePet(workflowCtx, portal) {
             });
             return workflowCtx.showEndpoint({
                 description: `retrieve a pet by status from the GET pets endpoint`,
-                endpointPermalink: "$e/pet/deletePet",
+                endpointPermalink: "$e/pet/getPetById",
                 args: {
                     petId: 10
                 },
