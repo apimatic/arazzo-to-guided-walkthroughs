@@ -61,7 +61,7 @@ This is a guided walkthrough.`);
          },
          verify: (response, setError) => {
            if (response.StatusCode != 200) {
-             setError("Please Try Again. Unable to find the API Spec");
+             setError("Oops your request failed");
              return false;
            } else {
              return true;
