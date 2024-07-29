@@ -1,2 +1,0 @@
-Generated walkthrough scripts:
-loginUserAndRetrievePet.js
