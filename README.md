@@ -7,23 +7,43 @@ Arazzo Walkthrough Translator is a Python-based tool that automates the generati
 - **Multi-Workflow Support**: Handles multiple workflows defined in a single Arazzo spec.
 - **Output Zipping**: Generates a zip file containing all the JavaScript functions for easy integration.
 
-## Installation
-
-### Prerequisites
-- Python 3.x
-- `pip` (Python package installer)
-
-### Clone the Repository
-```sh
-git clone https://github.com/yourusername/arazzo-walkthrough-translator.git
-cd arazzo-walkthrough-translator
+## File Structure
+```
+console-app/
+├── main.py             # Entry point for the console application
+├── translator.py       # Contains the Arazzo spec to JavaScript function translation logic
+├── parsespec.py        # Contains the code to parse the yml and fetch workflows, endpoints, source url
+├── requirements.txt    # Python dependencies
+└── README.md           # This file
 ```
 
-### Install Dependencies
-```sh
-pip install pyyaml
-```
+## Getting Started
 
+### Installation
+
+1. **Clone the repository:**
+   ```sh
+   git clone <repository-url>
+   cd <repository-directory>
+   ```
+   ```sh
+   # Switch to the console-app branch
+   git checkout console-app
+    ```
+
+2. **Install Dependencies**
+   ```sh
+   pip install pyyaml
+   ```
+
+3. **Add the Arazzo spec file:**
+   Place your `arazzo-specfile.yml` in the root directory of the project.
+
+4. **Run the application:**
+   ```sh
+   python main.py
+   ```
+   
 ## Usage
 
 1. **Prepare Your Arazzo Spec File**
@@ -45,43 +65,146 @@ pip install pyyaml
 Here's an example of what an Arazzo spec file might look like:
 
 ```yaml
+arazzo: 1.0.0
+info:
+  title: A pet purchasing workflow
+  summary: This Arazzo Description showcases the workflow for how to purchase a pet through a sequence of API calls
+  description: |
+      This Arazzo Description walks you through the workflow and steps of `searching` for, `selecting`, and `purchasing` an available pet.
+  version: 1.0.1
 sourceDescriptions:
-  - url: "https://api.yourservice.com/openapi.yaml"
+- name: petStoreDescription
+  url: https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml
+  type: openapi
+
 workflows:
-  - workflowId: "post_to_threads"
-    description: "Post a message to Threads"
-    steps:
-      - stepId: "get_token"
-        description: "Get OAuth Token"
-        operationId: "getOAuthToken"
-        parameters:
-          - name: "client_id"
-            in: "query"
-            value: "your_client_id"
-          - name: "client_secret"
-            in: "query"
-            value: "your_client_secret"
-      - stepId: "post_message"
-        description: "Post the message"
-        operationId: "postMessage"
-        parameters:
-          - name: "token"
-            in: "header"
-            value: "$steps.get_token.outputs.token"
-          - name: "message"
-            in: "body"
-            value: "Hello, World!"
+- workflowId: loginUserAndRetrievePet
+  summary: Login User and then retrieve pets
+  description: This workflow lays out the steps to login a user and then retrieve pets
+  inputs:
+      type: object
+      properties:
+          username:
+              type: string
+          password:
+              type: string
+  steps:
+  - stepId: loginStep
+    description: This step demonstrates the user login step
+    operationId: loginUser
+    parameters:
+      # parameters to inject into the loginUser operation (parameter name must be resolvable at the referenced operation and the value is determined using {expression} syntax)
+      - name: username
+        in: query
+        value: $inputs.username
+      - name: password
+        in: query
+        value: $inputs.password
+    successCriteria:
+      # assertions to determine step was successful
+      - condition: $statusCode == 200
+    outputs:
+      # outputs from this step
+      tokenExpires: $response.header.X-Expires-After
+      rateLimit: $response.header.X-Rate-Limit
+      sessionToken: $response.body
+  - stepId: getPetStep
+    description: retrieve a pet by status from the GET pets endpoint
+    operationPath: '{$sourceDescriptions.petstoreDescription.url}#/paths/~1pet~1findByStatus/get'
+    parameters:
+      - name: status
+        in: query
+        value: 'available'
+      - name: Authorization
+        in: header
+        value: $steps.loginUser.outputs.sessionToken
+    successCriteria:
+      - condition: $statusCode == 200
+    outputs:
+      # outputs from this step
+      availablePets: $response.body
+  outputs:
+      available: $steps.getPetStep.availablePets
 ```
 
-## Project Structure
+## Example Guided Walkthrough script
+Here's an example of what your generated walkthrough will look like:
 
-```
-arazzo-walkthrough-translator/
-├── main.py             # Main script to run the translator
-├── parsespec.py        # Utility to parse OpenAPI specs
-├── arazzo_spec.yaml    # Example Arazzo spec file
-├── output/             # Auto-generated directory for javascript function outputs
-└── README.md           # Project README file
+```javascript
+async function SampleWorkflow(workflowCtx, portal) {
+ return {
+   "Step 1": {
+     name: "How to Get Access Token",
+     stepCallback: async () => {
+       return workflowCtx.showContent(`## Introduction
+This is a guided walkthrough.`);
+     },
+   },
+   "Step 2": {
+     name: "Get Session Token",
+     stepCallback: async (stepState) => {
+       await portal.setConfig((defaultConfig) => ({}));
+       return workflowCtx.showEndpoint({
+         description:
+           "This endpoint initiates session management and returns an access token and client ID that is required in subsequent API requests.",
+         endpointPermalink: "$e/Session%20Management/StartSession",
+         verify: (response, setError) => {
+           if (response.StatusCode == 401 || response.StatusCode == 400) {
+             setError("Authentication Token is Required");
+             return false;
+           } else if (response.StatusCode == 200) {
+             return true;
+           } else {
+             setError(
+               "API Call wasn't able to get a valid response. Please try again."
+             );
+             return false;
+           }
+         },
+       });
+     },
+   },
+   "Step 3": {
+     name: "Get the List of Active Customer",
+     stepCallback: async (stepState) => {
+       const step2State = stepState?.["Step 2"];
+       await portal.setConfig((defaultConfig) => {
+         return {
+           ...defaultConfig,
+           auth: {
+             ...defaultConfig.auth,
+             bearerAuth: {
+               ...defaultConfig.auth.bearerAuth,
+               AccessToken: step2State.data?.sessionToken,
+             },
+           },
+           config: {
+             ...defaultConfig.config,
+           },
+         };
+       });
+       return workflowCtx.showEndpoint({
+         description: "This step fetches the list of active customers.",
+         endpointPermalink: "$e/Management/ListActiveCustomers",
+         args: {
+           body: {
+             ClientID: step2State.data?.clientID,
+             ClientSecret: step2State.requestData?.args?.body?.clientSecret
+           },
+         },
+         verify: (response, setError) => {
+           if (response.StatusCode != 200) {
+             setError("Oops your request failed");
+             return false;
+           } else {
+             return true;
+           }
+         },
+       });
+     },
+   },
+ };
+}
 ```
 
 ## License
