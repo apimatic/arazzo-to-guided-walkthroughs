@@ -1,15 +1,19 @@
-import parsespec
-import yaml
+from flask import Flask, request, send_file, jsonify
 import os
+import yaml
 import re
 import zipfile
+import tempfile
+import parsespec
+
+app = Flask(__name__)
 
 def get_arazzo_workflows(file_path):
     with open(file_path, 'r') as file:
         arazzo_data = yaml.safe_load(file)
     return arazzo_data['workflows']
 
-def get_arazzo_souceDescription_url(file_path):
+def get_arazzo_source_description_url(file_path):
     with open(file_path, 'r') as file:
         arazzo_data = yaml.safe_load(file)
     return arazzo_data['sourceDescriptions'][0]['url']
@@ -134,40 +138,57 @@ def save_js_function(js_code, file_name):
     with open(file_name, 'w') as file:
         file.write(js_code)
 
-def main():
-    arazzo_file = 'arazzo_spec.yaml'
-    output_dir = 'output'
-    os.makedirs(output_dir, exist_ok=True)
+@app.route('/generate-scripts', methods=['POST'])
+def generate_scripts():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
 
-    # print(url)
-    url = get_arazzo_souceDescription_url(arazzo_file)
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No file selected for uploading"}), 400
 
-    endpoints = parsespec.get_endpoints_from_openapi(url)
+    temp_dir = tempfile.mkdtemp()
+    temp_file_path = os.path.join(temp_dir, 'arazzo_spec.yaml')
+    file.save(temp_file_path)
+
+    try:
+        url = get_arazzo_source_description_url(temp_file_path)
+    except Exception as e:
+        return jsonify({"error": f"Failed to extract URL from spec: {str(e)}"}), 400
+
+    try:
+        endpoints = parsespec.get_endpoints_from_openapi(url)
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch OpenAPI spec: {str(e)}"}), 400
 
     workflow_ids = []
 
-    workflows = get_arazzo_workflows(arazzo_file)
+    try:
+        workflows = get_arazzo_workflows(temp_file_path)
+    except Exception as e:
+        return jsonify({"error": f"Failed to extract workflows from spec: {str(e)}"}), 400
+
     for workflow in workflows:
         js_code = generate_function(workflow, endpoints)
         workflow_id = workflow['workflowId']
         workflow_ids.append(workflow_id)
-        file_name = os.path.join(output_dir, f"{workflow_id}.js")
+        file_name = os.path.join(temp_dir, f"{workflow_id}.js")
         save_js_function(js_code, file_name)
-        print(js_code)
 
-    with open(os.path.join(output_dir, 'workflow_ids.txt'), 'w') as file:
+    with open(os.path.join(temp_dir, 'workflow_ids.txt'), 'w') as file:
         file.write("Generated walkthrough scripts:\n")
         for workflow_id in workflow_ids:
             file.write(f"{workflow_id}.js\n")
 
-    zip_filename = os.path.join(output_dir, 'guided-walkthrough-scripts.zip')
+    zip_filename = os.path.join(temp_dir, 'generated_files.zip')
     with zipfile.ZipFile(zip_filename, 'w') as zipf:
-        for root, _, files in os.walk(output_dir):
+        for root, _, files in os.walk(temp_dir):
             for file in files:
-                file_path = os.path.join(root, file)
-                zipf.write(file_path, os.path.relpath(file_path, output_dir))
+                if file != 'generated_files.zip':  # Avoid zipping the zip file itself
+                    file_path = os.path.join(root, file)
+                    zipf.write(file_path, os.path.relpath(file_path, temp_dir))
 
-    print(f"Generated files are zipped into: {zip_filename}")
+    return send_file(zip_filename, as_attachment=True, download_name='generated_files.zip')
 
 if __name__ == "__main__":
-    main()
+    app.run(debug=True)

@@ -7,6 +7,7 @@ pkgs.mkShell {
     pkgs.python3
     pkgs.python3Packages.pyyaml
     pkgs.python3Packages.requests
+    pkgs.python3Packages.flask
   ];
 
   shellHook = ''
