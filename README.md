@@ -1,4 +1,4 @@
-# Arazzo Walkthrough Translator
+# Arazzo Walkthrough Translator - Console App
 
 Arazzo Walkthrough Translator is a Python-based tool that automates the generation of Guided Walkthrough functions from OpenAPI's new Arazzo spec format. The tool processes the Arazzo spec, which acts as an overlay on the OpenAPI spec, defining workflows using multiple endpoints, and outputs JavaScript functions for each workflow.
 
