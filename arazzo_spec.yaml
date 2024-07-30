@@ -24,7 +24,6 @@ workflows:
   steps:
   - stepId: UpdatePetWithForm
     description: This step is to update pet with form
-    operationPath: '$e/pet/updatePetWithForm'
     operationId: updatePetWithForm
     parameters:
       - name: petId
@@ -44,9 +43,8 @@ workflows:
       tokenExpires: $response.header.X-Expires-After
       rateLimit: $response.header.X-Rate-Limit
       sessionToken: $response.body
-  - stepId: getPetStep
+  - stepId: GetPetStep
     description: retrieve a pet by status from the GET pets endpoint
-    operationPath: '$e/pet/deletePet'
     operationId: getPetById
     parameters:
       - name: petId
