@@ -7,56 +7,142 @@ info:
   version: 1.0.1
 sourceDescriptions:
 - name: petStoreDescription
-  url: https://raw.githubusercontent.com/swagger-api/swagger-petstore/master/src/main/resources/openapi.yaml
+  url: https://raw.githubusercontent.com/apimatic/api-copilot-portals/main/spotify-api-portal/spec/spotify-api/spotify-open-api.yml?token=GHSAT0AAAAAACUOPF6BRA334DFNJTQZFW76ZVMV67A
   type: openapi
 
 workflows:
-- workflowId: loginUserAndRetrievePet
-  summary: Login User and then retrieve pets
-  description: This workflow lays out the steps to login a user and then retrieve pets
-  inputs:
-      type: object
-      properties:
-          username:
-              type: string
-          password:
-              type: string
+- workflowId: createAUsersPlaylist
+  summary: Create a User's Playlist
+  description: This workflow lays out the steps to create a user's playlist
   steps:
-  - stepId: UpdatePetWithForm
-    description: This step is to update pet with form
-    operationId: updatePetWithForm
+
+  - stepId: GetProfile
+    description: Get Current User's Profile
+    operationId: get-current-users-profile
+    successCriteria:
+      - condition: $statusCode == 200
+    
+  - stepId: CreatePlaylist
+    description: Create Playlist
+    operationId: create-playlist
     parameters:
-      - name: petId
+      - name: user_id
         in: path
-        value: 10
+        value: $steps.GetProfile.outputs.id
       - name: name
-        in: query
-        value: TestVal
-      - name: status
-        in: query
-        value: TestVal
+        in: body
+        value: Test playlist
+      - name: public
+        in: body
+        value: false
+      - name: collaborative
+        in: body
+        value: false
+      - name: description
+        in: body
+        value: This Album was created during the Guided Walkthrough execution
     successCriteria:
-      # assertions to determine step was successful
       - condition: $statusCode == 200
-    outputs:
-      # outputs from this step
-      tokenExpires: $response.header.X-Expires-After
-      rateLimit: $response.header.X-Rate-Limit
-      sessionToken: $response.body
-  - stepId: GetPetStep
-    description: retrieve a pet by status from the GET pets endpoint
-    operationId: getPetById
+      - condition: $statusCode == 201
+
+- workflowId: getTopTracksOfAnArtist
+  summary: Get Top Tracks of an Artist
+  description: Retrieve the top tracks of an artist after searching the artist
+  steps:
+
+  - stepId: SearchArtist
+    description: Search Artist
+    operationId: search
+    successCriteria:
+      - condition: $statusCode == 200
+    
+  - stepId: GetTopTracks
+    description: Get an Artist's Top Tracks
+    operationId: get-an-artists-top-tracks
     parameters:
-      - name: petId
-        in: path
-        value: 10
-      - name: api_key
-        in: header
-        value: shouldWork
+      - name: id
+        in: query
+        value: $steps.SearchArtist.outputs.artists?.items[0]?.id
+      - name: market
+        in: query
+        value: null
     successCriteria:
       - condition: $statusCode == 200
-    outputs:
-      # outputs from this step
-      availablePets: $response.body
-  outputs:
-      available: $steps.getPetStep.availablePets
+      - condition: $statusCode == 201
+
+- workflowId: getUsersSavedAlbumTracks
+
+  summary: Fetch Tracks of a User Saved Album
+  description: This workflow lays out the steps to we'll show you can get the Tracks for a user saved album, even when you don't know the Album ID
+  steps:
+
+  - stepId: getUsersSavedAlbums
+    description: Get User Saved Albums
+    operationId: get-users-saved-albums
+    parameters:
+      - name: limit
+        in: query
+        value: 10
+      - name: offset
+        in: query
+        value: 0
+      - name: market
+        in: query
+        value: null
+    successCriteria:
+      - condition: $statusCode == 200
+    
+  - stepId: GetAlbumTracks
+    description: Get an Albums's Tracks
+    operationId: get-an-albums-tracks
+    parameters:
+      - name: id
+        in: path
+        value: $steps.getUsersSavedAlbums.outputs.items[0]?.album?.id
+      - name: limit
+        in: query
+        value: 20
+      - name: offset
+        in: query
+        value: 0
+    successCriteria:
+      - condition: $statusCode == 200
+      - condition: $statusCode == 201
+
+- workflowId: getPlaylistsFromCategory
+  summary: Get Top 10 Albums of a Category
+  description: This workflow lays out the steps to retrieve the Top 10 albums within a category even when you don't know the Category ID.
+  steps:
+
+  - stepId: GetCategories
+    description: Get Categories
+    operationId: get-categories
+    parameters:
+      - name: locale
+        in: query
+        value: sv_SE
+      - name: limit
+        in: query
+        value: 10
+      - name: offset
+        in: query
+        value: 5
+    successCriteria:
+      - condition: $statusCode == 200
+    
+  - stepId: GetCategoriesPlaylist
+    description: Get a Categories Playlists
+    operationId: get-a-categories-playlists
+    parameters:
+      - name: category_id
+        in: path
+        value: $steps.GetCategories.outputs.categories?.items[0]?.id
+      - name: limit
+        in: query
+        value: 10
+      - name: offset
+        in: query
+        value: 0
+    successCriteria:
+      - condition: $statusCode == 200
+      - condition: $statusCode == 201

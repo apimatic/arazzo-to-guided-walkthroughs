@@ -40,8 +40,8 @@ step_template = """
                     {args_code}
                 }},
                 verify: (response, setError) => {{
-                    if (response.StatusCode != 200) {{
-                        setError("Error text");
+                    if (response.StatusCode != 200 && response.StatusCode != 201) {{
+                        setError("Seems like something went wrong. You will find the error message in the API Response. If you have having difficulty with Autentication, we have a guide for you in our docs.");
                         return false;
                     }} else {{
                         return true;
@@ -58,15 +58,19 @@ def replace_dynamic_references(value, steps):
         matches = pattern.findall(value)
         for match in matches:
             step_name, output_name = match
-            step_var = f"stepState?.[\"{step_name}\"].data?.{output_name}"
+            step_var = f"previousStepState.data?.{output_name}"
             value = value.replace(f"$steps.{step_name}.outputs.{output_name}", step_var)
     return value
+
+
 
 def is_number(value):
     try:
         float(value)
         return True
     except ValueError:
+        return False
+    except TypeError:
         return False
 
 def generate_step_code(step, steps, endpoints):
@@ -161,7 +165,7 @@ def main():
             file.write(f"{workflow_id}.js\n")
 
     zip_filename = os.path.join(output_dir, 'guided-walkthrough-scripts.zip')
-    with zipfile.ZipFile(zip_filename, 'w') as zipf:
+    with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
         for root, _, files in os.walk(output_dir):
             for file in files:
                 file_path = os.path.join(root, file)
